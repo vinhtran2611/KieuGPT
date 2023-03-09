@@ -79,7 +79,6 @@ class KieuDataset(Dataset):
     def __getitem__(self, idx):
         # grab a chunk of (block_size + 1) characters from the data
         chunk = self.data[idx:idx + self.config.block_size + 1]
-        print(chunk)
         # encode every character to an integer
         dix = [self.stoi[s] for s in chunk]
         # return as tensors
