@@ -4,6 +4,7 @@ Trains a character-level language model.
 
 import os
 import sys
+import re
 
 import torch
 from torch.utils.data import Dataset
@@ -47,22 +48,22 @@ class KieuDataset(Dataset):
     @staticmethod
     def get_default_config():
         C = CN()
-        C.block_size = 128
+        C.block_size = 16
         return C
 
-    def __init__(self, config, data):
+    def __init__(self, config, text):
         self.config = config
-        data = data.lower().split()
+
+        data = re.findall(r'\w+|\n', text.lower())
 
         words = list(set(data))
-        words.append('\n')
 
         data_size, vocab_size = len(data), len(words)
         print('data has: %d words, vocab size: %d .' % (data_size, vocab_size))
 
         self.stoi = { w:i for i,w in enumerate(words) }
         self.itos = { i:w for i,w in enumerate(words) }
-        
+
         self.vocab_size = vocab_size
         self.data = data
 
@@ -78,6 +79,7 @@ class KieuDataset(Dataset):
     def __getitem__(self, idx):
         # grab a chunk of (block_size + 1) characters from the data
         chunk = self.data[idx:idx + self.config.block_size + 1]
+        print(chunk)
         # encode every character to an integer
         dix = [self.stoi[s] for s in chunk]
         # return as tensors
@@ -99,7 +101,12 @@ if __name__ == '__main__':
     # construct the training dataset
     text = open('truyenkieu.txt', 'r', encoding='utf-8').read() # don't worry we won't run out of file handles
     train_dataset = KieuDataset(config.data, text)
-    print(train_dataset.itos)
+    enc = train_dataset[0][0]
+    dec = [train_dataset.itos[i] for i in enc.tolist()]
+    print(enc)
+    print(" ".join(dec))
+    print(train_dataset.stoi['\n'])
+
 
     # construct the model
     config.model.vocab_size = train_dataset.get_vocab_size()
@@ -135,4 +142,4 @@ if __name__ == '__main__':
     trainer.set_callback('on_batch_end', batch_end_callback)
 
     # run the optimization
-    trainer.run()
+    # trainer.run()

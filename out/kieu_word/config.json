@@ -4,7 +4,7 @@
         "work_dir": "./out/kieu_word"
     },
     "data": {
-        "block_size": 128
+        "block_size": 16
     },
     "model": {
         "model_type": "gpt-mini",
