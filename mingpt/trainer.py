@@ -9,6 +9,7 @@ from collections import defaultdict
 import torch
 from torch.utils.data.dataloader import DataLoader
 from mingpt.utils import CfgNode as CN
+from mingpt.model import GPT
 
 class Trainer:
 
@@ -62,7 +63,7 @@ class Trainer:
         model, config = self.model, self.config
 
         # setup the optimizer
-        self.optimizer = model.configure_optimizers(config)
+        self.optimizer = GPT.configure_optimizers(model, config)
 
         # setup the dataloader
         train_loader = DataLoader(
@@ -91,7 +92,7 @@ class Trainer:
 
             # forward the model
             logits, self.loss = model(x, y)
-
+            
             # backprop and update the parameters
             model.zero_grad(set_to_none=True)
             self.loss.backward()

@@ -23,7 +23,7 @@ def get_config():
     # system
     C.system = CN()
     C.system.seed = 3407
-    C.system.work_dir = './out/kieu_word'
+    C.system.work_dir = './out/kieu_pretrained'
 
     # data
     C.data = KieuDataset.get_default_config()
@@ -110,7 +110,8 @@ if __name__ == '__main__':
     # construct the model
     config.model.vocab_size = train_dataset.get_vocab_size()
     config.model.block_size = train_dataset.get_block_size()
-    model = GPT(config.model)
+    model = GPT(config.model, pretrained = True, your_vocab_size= train_dataset.get_vocab_size())
+    model = model.from_pretrained("NlpHUST/gpt2-vietnamese")
 
     # construct the trainer object
     trainer = Trainer(config.trainer, model, train_dataset)
@@ -118,10 +119,10 @@ if __name__ == '__main__':
     # iteration callback
     def batch_end_callback(trainer):
 
-        if trainer.iter_num % 1 == 0:
+        if trainer.iter_num % 10 == 0:
             print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {trainer.loss.item():.5f}")
 
-        if trainer.iter_num % 50 == 0:
+        if trainer.iter_num % 500 == 0:
             # evaluate both the train and test score
             model.eval()
             with torch.no_grad():
@@ -133,7 +134,7 @@ if __name__ == '__main__':
                 print(completion)
             # save the latest model
             print("saving model")
-            ckpt_path = os.path.join(config.system.work_dir, "kieu_model.pt")
+            ckpt_path = os.path.join(config.system.work_dir, "kieu_pretrained_model.pt")
             torch.save(model.state_dict(), ckpt_path)
             # revert model to training mode
             model.train()

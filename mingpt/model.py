@@ -112,7 +112,7 @@ class GPT(nn.Module):
         C.attn_pdrop = 0.1
         return C
 
-    def __init__(self, config):
+    def __init__(self, config, pretrained = False, your_vocab_size = None):
         super().__init__()
         assert config.vocab_size is not None
         assert config.block_size is not None
@@ -151,6 +151,12 @@ class GPT(nn.Module):
             ln_f = nn.LayerNorm(config.n_embd),
         ))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+        
+        # Just for pretrained
+        self.pretrained = pretrained
+        if self.pretrained:
+            self.your_vocab_size = your_vocab_size
+            self.generator = torch.nn.Linear(config.vocab_size, self.your_vocab_size)
 
         # init all weights, and apply a special scaled init to the residual projections, per GPT-2 paper
         self.apply(self._init_weights)
@@ -173,12 +179,13 @@ class GPT(nn.Module):
             torch.nn.init.zeros_(module.bias)
             torch.nn.init.ones_(module.weight)
 
-    @classmethod
+    # @classmethod
     def from_pretrained(cls, model_type):
         """
         Initialize a pretrained GPT model by copying over the weights
         from a huggingface/transformers checkpoint.
         """
+        assert cls.pretrained == True
         assert model_type in {'gpt2', 'gpt2-medium', 'gpt2-large', 'gpt2-xl', 'NlpHUST/gpt2-vietnamese'}
         from transformers import GPT2LMHeadModel
 
@@ -187,7 +194,7 @@ class GPT(nn.Module):
         config.model_type = model_type
         config.vocab_size = 50257 # openai's model vocabulary
         config.block_size = 1024  # openai's model block_size
-        model = GPT(config)
+        model = GPT(config, True, cls.your_vocab_size)
         sd = model.state_dict()
 
         # init a huggingface/transformers model
@@ -199,7 +206,7 @@ class GPT(nn.Module):
         transposed = ['attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight']
         # basically the openai checkpoints use a "Conv1D" module, but we only want to use a vanilla nn.Linear.
         # this means that we have to transpose these weights when we import them
-        assert len(keys) == len(sd)
+        # assert len(keys) == len(sd)
         for k in keys[:-1]:
             if any(k.endswith(w) for w in transposed):
                 # special treatment for the Conv1D weights we need to transpose
@@ -211,10 +218,12 @@ class GPT(nn.Module):
                 assert sd_hf[k].shape == sd[k].shape
                 with torch.no_grad():
                     sd[k].copy_(sd_hf[k])
-
+            sd[k].requires_grad = False
+        
         return model
 
-    def configure_optimizers(self, train_config):
+    @staticmethod
+    def configure_optimizers(model, train_config):
         """
         This long function is unfortunately doing something very simple and is being very defensive:
         We are separating out all parameters of the model into two buckets: those that will experience
@@ -227,7 +236,7 @@ class GPT(nn.Module):
         no_decay = set()
         whitelist_weight_modules = (torch.nn.Linear, )
         blacklist_weight_modules = (torch.nn.LayerNorm, torch.nn.Embedding)
-        for mn, m in self.named_modules():
+        for mn, m in model.named_modules():
             for pn, p in m.named_parameters():
                 fpn = '%s.%s' % (mn, pn) if mn else pn # full param name
                 # random note: because named_modules and named_parameters are recursive
@@ -244,7 +253,7 @@ class GPT(nn.Module):
                     no_decay.add(fpn)
 
         # validate that we considered every parameter
-        param_dict = {pn: p for pn, p in self.named_parameters()}
+        param_dict = {pn: p for pn, p in model.named_parameters()}
         inter_params = decay & no_decay
         union_params = decay | no_decay
         assert len(inter_params) == 0, "parameters %s made it into both decay/no_decay sets!" % (str(inter_params), )
@@ -273,6 +282,10 @@ class GPT(nn.Module):
             x = block(x)
         x = self.transformer.ln_f(x)
         logits = self.lm_head(x)
+
+        # for pretrained
+        if self.pretrained:
+            logits = self.generator(logits)
 
         # if we are given some desired targets also calculate the loss
         loss = None
@@ -310,3 +323,6 @@ class GPT(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1)
 
         return idx
+
+
+
