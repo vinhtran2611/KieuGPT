@@ -47,7 +47,7 @@ class CharDataset(Dataset):
     @staticmethod
     def get_default_config():
         C = CN()
-        C.block_size = 128
+        C.block_size = 32
         return C
 
     def __init__(self, config, data):
@@ -79,6 +79,9 @@ class CharDataset(Dataset):
         # return as tensors
         x = torch.tensor(dix[:-1], dtype=torch.long)
         y = torch.tensor(dix[1:], dtype=torch.long)
+        print(chunk)
+        print(x)
+        print(y)
         return x, y
 
 # -----------------------------------------------------------------------------
@@ -94,7 +97,10 @@ if __name__ == '__main__':
 
     # construct the training dataset
     text = open('truyenkieu.txt', 'r', encoding='utf-8').read() # don't worry we won't run out of file handles
-    train_dataset = CharDataset(config.data, text)    
+    train_dataset = CharDataset(config.data, text) 
+    print(train_dataset.itos)   
+    x, y = train_dataset[0]
+
 
     # construct the model
     config.model.vocab_size = train_dataset.get_vocab_size()
@@ -130,4 +136,4 @@ if __name__ == '__main__':
     trainer.set_callback('on_batch_end', batch_end_callback)
 
     # run the optimization
-    trainer.run()
+    # trainer.run()

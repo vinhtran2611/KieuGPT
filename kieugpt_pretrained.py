@@ -100,11 +100,6 @@ if __name__ == '__main__':
     # construct the training dataset
     text = open('truyenkieu.txt', 'r', encoding='utf-8').read() # don't worry we won't run out of file handles
     train_dataset = KieuDataset(config.data, text)
-    # enc = train_dataset[0][0]
-    # dec = [train_dataset.itos[i] for i in enc.tolist()]
-    # print(enc)
-    # print(" ".join(dec))
-    # print(train_dataset.stoi['\n'])
 
 
     # construct the model
